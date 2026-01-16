@@ -13,6 +13,7 @@
 		<properties>
 			<property name="text_domain" type="array">
 				<element value="wp-document-revisions"/>
+				<element value="wpdr-revisionary"/>
 			</property>
 		</properties>
 	</rule>
