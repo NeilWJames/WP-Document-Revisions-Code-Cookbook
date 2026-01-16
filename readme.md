@@ -15,6 +15,7 @@ Integration plugins that will integrate WP Document Revisions with other plugins
 
 1. **Role Permissions** - Integrates the Members plugin Content Permissions functionality into WP Document Revisions to provide role based document access.
 1. **WPML Support** - Integrates WPML with WP Document Revisions to provide multi-language documents.
+1. **PublishPress Revisions Integration** - Integrates PP Revisions with WP Document Revisions to allow updates to Documents be planned and discussed before publication.
 
 To use these integration plugins, the specific directory should be zipped (i.e. a single compressed file) and then loaded as a plugin and activated.
 
