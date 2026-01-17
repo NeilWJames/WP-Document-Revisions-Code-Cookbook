@@ -161,7 +161,7 @@ class WPDR_Revisionary {
 		add_action( 'template_redirect', array( &$this, 'revision_redirect' ), 15 );
 
 		// Make sure reject.
-		add_filter( 'wp_redirect', array( &$this, 'redirect_from_revision' ), 10, 2 );
+		add_filter( 'wp_redirect', array( &$this, 'redirect_from_revision' ), 99, 2 );
 
 		// Change the preview link format.
 		add_filter( 'revisionary_preview_link_type', array( &$this, 'preview_link_type' ), 10, 2 );
@@ -341,7 +341,7 @@ class WPDR_Revisionary {
 	private function log( string $message, $data = null ): void {
 		if ( $this->debug ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_print_r
-			write_log( 'WPDR_RVY: ' . $message . ' ' . print_r( $data, true ) );
+			error_log( 'WPDR_RVY: ' . $message . ' ' . print_r( $data, true ) );
 		}
 	}
 
@@ -593,7 +593,6 @@ class WPDR_Revisionary {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$p    = ( isset( $_GET['p'] ) ? (int) $_GET['p'] : (int) $_GET['post'] );
 		$post = get_post( $p );
-		$this->log( 'Post: ', $post );
 		if ( 'revision' === $post->post_type && 0 !== $post->post_parent ) {
 			$parent = get_post( $post->post_parent );
 			if ( 'document' === $parent->post_type ) {
@@ -609,7 +608,6 @@ class WPDR_Revisionary {
 
 		// If the new url is different from the input url, redirect.
 		if ( $input_url !== $current_url ) {
-			$this->log( 'Redirecting to ', $current_url );
 			wp_safe_redirect( $current_url );
 			exit;
 		}
@@ -624,7 +622,6 @@ class WPDR_Revisionary {
 	 * @param WP_Post $post         The post object.
 	 */
 	public function possibly_delete_revision( $allow_delete, $post ): bool {
-		$this->log( 'del_revn', $post );
 		// is this a PP_Revision post.
 		if ( (bool) $post->comment_count && array_key_exists( $post->post_mime_type, $this->rvy_revision_statuses() ) ) {
 			return $allow_delete;
@@ -647,12 +644,10 @@ class WPDR_Revisionary {
 		);
 		foreach ( array_reverse( $traces ) as $trace ) {
 			if ( in_array( $trace['function'], $allow, true ) ) {
-				$this->log( 'delete:', $trace['function'] );
 				return true;
 			}
 			if ( in_array( $trace['function'], $block, true ) ) {
 				// Dont want standard plugin processing.
-				$this->log( 'keep:' . $trace['function'] );
 				return false;
 			}
 		}
@@ -660,7 +655,6 @@ class WPDR_Revisionary {
 			// WP Core process to delete post and its revisions. OK to delete.
 			return true;
 		}
-		$this->log( 'trace', $traces );
 		return $allow_delete;
 	}
 
@@ -679,8 +673,6 @@ class WPDR_Revisionary {
 			// Only for documents.
 			return;
 		}
-		$this->log( 'published', $published );
-		$this->log( 'revision', $revision );
 		$parent = null;
 		// Ensure that the published post is a document and the revision is no longer a document.
 		if ( 'revision' === $revision->post_type ) {
@@ -719,7 +711,6 @@ class WPDR_Revisionary {
 		// There is a Document Revision created after the PP Revision and we can bump up its ID.
 		global $wpdb;
 		if ( ! is_null( self::$revn ) ) {
-			$this->log( 'update ' . $revision->ID . ' to ' . self::$revn );
 			// if records have been deleted, update the key of the revision to the highest by SQL.
 			$guid = str_replace( 'p=' . $revision->ID, 'p=' . self::$revn, $revision->guid );
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -767,11 +758,6 @@ class WPDR_Revisionary {
 		if ( 'document' !== $published->post_type ) {
 			return $update;
 		}
-		$this->log( 'data: ' . $published->post_type );
-		$this->log( 'update: ' . $update['ID'] . ' Pub: ' . $published->ID );
-		$this->log( 'Uex: ' . $update['post_excerpt'] );
-		$this->log( 'Rex: ' . $revision->post_excerpt );
-		$this->log( 'Pex: ' . $published->post_excerpt );
 
 		// Add fields to list.
 		$update['post_name']         = $published->ID . '-revision-v1';
@@ -795,7 +781,6 @@ class WPDR_Revisionary {
 	 * @return mixed[]
 	 */
 	public function revision_fields( $update_fields, $revision, $published, $actual_revision_status ) { //phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
-		$this->log( 'fields: ' . $published->post_type );
 		if ( 'document' !== $published->post_type ) {
 			return $update_fields;
 		}
@@ -803,10 +788,8 @@ class WPDR_Revisionary {
 		// The attachment on the revision document needs to have the original document as parent.
 		global $wpdr;
 		$attach = $wpdr->extract_document_id( $revision->post_content );
-		$this->log( 'attach', $attach );
 		if ( get_post_field( 'post_parent', $attach ) !== $published->ID ) {
 			// Update attachment post in the database.
-			$this->log( 'update parent to ' . $published->ID );
 			wp_update_post(
 				array(
 					'ID'          => $attach,
@@ -820,7 +803,6 @@ class WPDR_Revisionary {
 		// Check if there is any residual revision or attachments with revision as parent and delete them.
 		// Need to do it here as the revision children would otherwise be deleted by SQL (and will ignore any redundant attachments).
 		global $wpdr;
-		$this->log( 'Revision:' . $revision->ID );
 		$children = get_children(
 			array(
 				'post_parent'   => $revision->ID,
@@ -832,7 +814,6 @@ class WPDR_Revisionary {
 			self::$revn = $revision->ID;
 			foreach ( $children as $child ) {
 				$id = $child->ID;
-				$this->log( 'Post:' . $id . ' Type:' . $child->post_type );
 				// Find the maximum post being deleted.
 				if ( $id > self::$revn ) {
 					self::$revn = $id;
@@ -874,7 +855,6 @@ class WPDR_Revisionary {
 
 		// If there is a value, then it is useful to bump up the revision ID as it will improve revision ordering.
 		if ( $rev_exist ) {
-			$this->log( 'WPDR rev exist: ', self::$revn );
 			// Suppress the Published Document SQL later revision Deletes; and also switch off the filter.
 			add_filter( 'query', array( &$this, 'delete_query' ) );
 			add_action( 'revision_applied', array( &$this, 'remove_delete_query' ), 99, 2 );
@@ -901,7 +881,6 @@ class WPDR_Revisionary {
 		// SQL to change.
 		if ( 0 === strpos( $query, "DELETE FROM $wpdb->posts " ) ) {
 			$query .= ' AND 1=0';
-			$this->log( 'query:', $query );
 			// now stop looking and can switch off belt and braces.
 			remove_filter( 'query', array( &$this, 'delete_query' ) );
 			remove_action( 'revision_applied', array( &$this, 'remove_delete_query' ), 99, 2 );
